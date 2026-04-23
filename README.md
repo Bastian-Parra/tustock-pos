@@ -186,3 +186,4 @@ MIT
 ## 👥 Contribuir
 
 Este proyecto es parte de Ventas-App. Para contribuir, sigue las mismas convenciones que la aplicación web principal.
+"# tustock-pos" 
