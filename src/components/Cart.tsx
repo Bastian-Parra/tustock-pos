@@ -1,0 +1,360 @@
+import { usePOSStore } from "@/store/posStore";
+import { useAuthStore } from "@/store/authStore";
+import { useOrders } from "@/hooks/useOrders";
+import {
+  Trash2,
+  Plus,
+  Minus,
+  CreditCard,
+  DollarSign,
+  Percent,
+  Printer,
+  Loader2,
+} from "lucide-react";
+import { formatCurrency } from "@/lib/utils";
+import { useState } from "react";
+import toast from "react-hot-toast";
+import { Customer, PaymentMethod } from "@/types";
+import PrintTicketDialog from "@/components/PrintTicketDialog";
+import { TicketData, loadPrinterConfig } from "@/lib/ticket-printer";
+import CustomerSearch from "@/components/CustomerSearch";
+
+export default function Cart() {
+  const {
+    items,
+    discount,
+    paymentMethod,
+    customerId,
+    clearCart,
+    removeItem,
+    updateQuantity,
+    setDiscount,
+    setPaymentMethod,
+    setCustomer,
+    getSubtotal,
+    getTotal,
+  } = usePOSStore();
+
+  const { tenant, user } = useAuthStore();
+  const { createOrder } = useOrders();
+  const [processing, setProcessing] = useState(false);
+  const [showPrintDialog, setShowPrintDialog] = useState(false);
+  const [lastTicketData, setLastTicketData] = useState<TicketData | null>(null);
+
+  const rawDefaultTaxRate = (tenant?.settings as any)?.tax_rate || 0.19;
+  const defaultTaxRate = rawDefaultTaxRate > 1 ? rawDefaultTaxRate / 100 : rawDefaultTaxRate;
+  const subtotal = getSubtotal();
+
+  // Calcular IVA total (precios incluyen IVA, se extrae el componente IVA)
+  const tax = items.reduce((sum, item) => {
+    const itemSubtotal = item.product.price * item.quantity;
+    // Usar siempre el tax_rate del tenant para consistencia
+    const itemNeto = itemSubtotal / (1 + defaultTaxRate);
+    const itemTax = itemSubtotal - itemNeto;
+    return sum + itemTax;
+  }, 0);
+
+  const total = getTotal();
+
+  const handleCheckout = async () => {
+
+    if (processing) {
+      console.log("Processing...");
+      return;
+    }
+
+    if (items.length === 0) {
+      toast.error("El carrito está vacío");
+      return;
+    }
+
+    setProcessing(true);
+
+    try {
+      if (!paymentMethod) {
+        toast.error("Selecciona un método de pago");
+        return;
+      }
+
+      const hasZeroQuantity = items.some((item) => item.quantity <= 0);
+      if (hasZeroQuantity) {
+        toast.error(
+          "No se pueden agregar productos con cantidad menor o igual a 0",
+        );
+        return;
+      }
+    } catch (error) {}
+
+    try {
+      // Convertir items a OrderItems
+      const orderItems = items.map((item) => {
+        const itemSubtotal = item.product.price * item.quantity;
+        // Precio incluye IVA: extraer el IVA usando el tax_rate del tenant
+        const itemNeto = itemSubtotal / (1 + defaultTaxRate);
+        const itemTax = itemSubtotal - itemNeto;
+
+        return {
+          product_id: item.product.id,
+          product_name: item.product.name,
+          sku: item.product.sku,
+          quantity: item.quantity,
+          price: item.product.price,
+          cost: item.product.cost,
+          discount: 0,
+          tax: itemTax,
+          subtotal: itemSubtotal,
+        };
+      });
+      
+      // Snapshot items antes de limpiar el carrito
+      const snapshotItems = items.map(item => ({
+        name: item.product.name,
+        quantity: item.quantity,
+        unitPrice: item.product.price,
+        total: item.product.price * item.quantity,
+      }));
+
+      const order = await createOrder({
+        customer_id: customerId || undefined,
+        items: orderItems,
+        payment_method: paymentMethod as PaymentMethod,
+        source: "pos",
+        discount: discount,
+      });
+
+      // Preparar datos del ticket
+      const ticketData: TicketData = {
+        businessName: tenant?.name || 'Mi Tienda',
+        businessAddress: (tenant?.settings as any)?.address?.street || '',
+        businessPhone: (tenant?.settings as any)?.phone || '',
+        businessRut: (tenant?.settings as any)?.rut || '',
+        orderNumber: order?.order_number || `POS-${Date.now()}`,
+        date: new Date().toLocaleDateString('es-CL', { year: 'numeric', month: '2-digit', day: '2-digit' }),
+        cashierName: user?.full_name || user?.email || 'Cajero',
+        items: snapshotItems,
+        subtotal,
+        discount,
+        tax,
+        taxRate: defaultTaxRate,
+        total,
+        paymentMethod: paymentMethod || 'cash',
+        footerMessage: loadPrinterConfig().footerMessage,
+      };
+
+      setLastTicketData(ticketData);
+      toast.success("Venta completada exitosamente");
+      clearCart();
+      setShowPrintDialog(true);
+    } catch (error: any) {
+      console.error("Error en checkout:", error);
+      toast.error(error.message || "Error al procesar la venta");
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  return (
+    <div className="h-full flex flex-col bg-gray-50">
+      {/* Header */}
+      <div className="p-4 bg-white border-b space-y-3">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">Carrito de Venta</h2>
+          <p className="text-sm text-gray-600">
+            {items.length} {items.length === 1 ? "producto" : "productos"}
+          </p>
+        </div>
+        <CustomerSearch
+          selectedCustomerId={customerId}
+          onSelect={(c: Customer | null) => setCustomer(c?.id ?? null)}
+        />
+      </div>
+
+      {/* Items */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        {items.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-gray-500">
+            <p className="text-lg">Carrito vacío</p>
+            <p className="text-sm mt-2">Agrega productos para comenzar</p>
+          </div>
+        ) : (
+          items.map((item) => (
+            <div
+              key={item.product.id}
+              className="bg-white rounded-lg p-4 border border-gray-200"
+            >
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex-1">
+                  <h3 className="font-semibold text-gray-900 text-sm">
+                    {item.product.name}
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    SKU: {item.product.sku}
+                  </p>
+                </div>
+                <button
+                  onClick={() => removeItem(item.product.id)}
+                  className="text-red-500 hover:text-red-700 p-1"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between mt-3">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      try {
+                        updateQuantity(item.product.id, item.quantity - 1);
+                      } catch (error: any) {
+                        toast.error(
+                          error.message || "Error al actualizar cantidad",
+                        );
+                      }
+                    }}
+                    className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100"
+                  >
+                    <Minus size={14} />
+                  </button>
+                  <span className="w-12 text-center font-semibold">
+                    {item.quantity}
+                  </span>
+                  <button
+                    onClick={() => {
+                      try {
+                        updateQuantity(item.product.id, item.quantity + 1);
+                      } catch (error: any) {
+                        toast.error(
+                          error.message || "Error al actualizar cantidad",
+                        );
+                      }
+                    }}
+                    disabled={item.quantity >= (item.product.stock || 0)}
+                    className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Plus size={14} />
+                  </button>
+                </div>
+                <span className="font-bold text-blue-600">
+                  {formatCurrency(item.product.price * item.quantity)}
+                </span>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Totales y acciones */}
+      <div className="p-4 bg-white border-t space-y-4">
+        {/* Descuento */}
+        <div className="flex items-center gap-2">
+          <Percent size={18} className="text-gray-500" />
+          <input
+            type="number"
+            value={discount}
+            onChange={(e) => setDiscount(Number(e.target.value))}
+            placeholder="Descuento"
+            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+            min="0"
+          />
+        </div>
+
+        {/* Método de pago */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Método de Pago
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            {["cash", "card", "transfer", "qr"].map((method) => (
+              <button
+                key={method}
+                onClick={() => setPaymentMethod(method as any)}
+                className={`p-3 border-2 rounded-lg text-sm font-medium transition ${
+                  paymentMethod === method
+                    ? "border-blue-600 bg-blue-50 text-blue-700"
+                    : "border-gray-200 hover:border-gray-300"
+                }`}
+              >
+                {method === "cash" && (
+                  <DollarSign size={16} className="inline mr-1" />
+                )}
+                {method === "card" && (
+                  <CreditCard size={16} className="inline mr-1" />
+                )}
+                {method === "transfer" && "Transfer"}
+                {method === "qr" && "QR"}
+                {method === "cash" && "Efectivo"}
+                {method === "card" && "Tarjeta"}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Resumen */}
+        <div className="space-y-2 pt-4 border-t">
+          <div className="flex justify-between text-sm text-gray-600">
+            <span>Subtotal</span>
+            <span>{formatCurrency(subtotal)}</span>
+          </div>
+          {discount > 0 && (
+            <div className="flex justify-between text-sm text-red-600">
+              <span>Descuento</span>
+              <span>-{formatCurrency(discount)}</span>
+            </div>
+          )}
+          <div className="flex justify-between text-sm text-gray-600">
+            <span>IVA</span>
+            <span>{formatCurrency(tax)}</span>
+          </div>
+          <div className="flex justify-between text-lg font-bold pt-2 border-t">
+            <span>Total</span>
+            <span className="text-blue-600">{formatCurrency(total)}</span>
+          </div>
+        </div>
+
+        {/* Botones */}
+        <div className="space-y-2">
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (!processing) {
+                handleCheckout();
+              }
+            }}
+            disabled={items.length === 0 || !paymentMethod || processing}
+            className="w-full bg-blue-600 text-white py-4 rounded-lg font-bold text-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition flex items-center justify-center gap-2"
+          >
+            {processing ? (
+              <>
+                <Loader2 className="animate-spin" size={20} />
+                Procesando...
+              </>
+            ) : (
+              <>
+                <CreditCard size={20} />
+                Completar Venta
+              </>
+            )}
+          </button>
+
+          {lastTicketData && (
+            <button
+              onClick={() => setShowPrintDialog(true)}
+              className="w-full py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition flex items-center justify-center gap-2"
+            >
+              <Printer size={14} />
+              Reimprimir último ticket
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Print Dialog */}
+      <PrintTicketDialog
+        isOpen={showPrintDialog}
+        onClose={() => setShowPrintDialog(false)}
+        ticketData={lastTicketData}
+      />
+    </div>
+  );
+}
