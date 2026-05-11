@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, session } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog } from 'electron'
 import * as path from 'path'
 import { fileURLToPath } from 'url'
 
@@ -11,11 +11,38 @@ let mainWindow: BrowserWindow | null = null
 
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged
 
+// Auto-updater (solo en producción)
+async function setupAutoUpdater() {
+  if (isDev) return
+  try {
+    const { autoUpdater } = await import('electron-updater')
+    autoUpdater.checkForUpdatesAndNotify()
+    autoUpdater.on('update-available', () => {
+      dialog.showMessageBox({
+        type: 'info',
+        title: 'Actualización disponible',
+        message: 'Hay una nueva versión de TuStock POS disponible. Se descargará en segundo plano.',
+        buttons: ['OK'],
+      })
+    })
+    autoUpdater.on('update-downloaded', () => {
+      dialog.showMessageBox({
+        type: 'info',
+        title: 'Actualización lista',
+        message: 'La actualización se instalará al cerrar la aplicación.',
+        buttons: ['Reiniciar ahora', 'Más tarde'],
+      }).then(({ response }) => {
+        if (response === 0) autoUpdater.quitAndInstall()
+      })
+    })
+  } catch {
+    // electron-updater no disponible
+  }
+}
+
 function createWindow() {
   // Rutas para preload y assets
-  const preloadPath = isDev
-    ? path.join(__dirname, 'preload.js')
-    : path.join(__dirname, 'preload.js')
+  const preloadPath = path.join(__dirname, 'preload.cjs')
 
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -37,7 +64,7 @@ function createWindow() {
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173')
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/renderer/index.html'))
+    mainWindow.loadFile(path.join(__dirname, 'renderer/index.html'))
   }
 
   mainWindow.once('ready-to-show', () => {
@@ -57,6 +84,7 @@ function createWindow() {
 // Este método se llamará cuando Electron haya terminado de inicializarse
 app.whenReady().then(() => {
   createWindow()
+  setupAutoUpdater()
 
   app.on('activate', () => {
     // En macOS es común recrear una ventana cuando se hace clic en el icono del dock

@@ -1,4 +1,41 @@
-# Ventas POS - Sistema de Punto de Venta Desktop
+# TuStock POS
+
+Sistema de punto de venta de escritorio para TuStock.
+
+## Releases automáticos (GitHub Actions)
+
+Para publicar una nueva versión:
+
+```bash
+# 1. Actualiza la versión en package.json
+# 2. Haz commit y push
+git add .
+git commit -m "chore: release v1.0.1"
+
+# 3. Crea un tag con la versión
+git tag v1.0.1
+git push origin main --tags
+```
+
+GitHub Actions hará build automáticamente en Windows, macOS y Linux, y publicará los instaladores en GitHub Releases.
+
+### Secrets requeridos en GitHub
+
+Ve a **Settings → Secrets and variables → Actions** y agrega:
+
+| Secret | Valor |
+|--------|-------|
+| `GH_TOKEN` | Personal Access Token con permisos `repo` |
+| `VITE_SUPABASE_URL` | URL de Supabase |
+| `VITE_SUPABASE_ANON_KEY` | Anon key de Supabase |
+
+### Crear GH_TOKEN
+
+1. GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)
+2. Generate new token → scopes: `repo` (todo)
+3. Copia el token y agrégalo como secret `GH_TOKEN`
+
+## Desarrollo local - Sistema de Punto de Venta Desktop
 
 Sistema POS (Point of Sale) desarrollado con Electron para la aplicación Ventas-App. Comparte la misma base de datos Supabase y mantiene la arquitectura multi-tenant.
 

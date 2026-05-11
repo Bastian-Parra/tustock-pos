@@ -1,6 +1,6 @@
 module.exports = {
-  appId: 'com.ventasapp.pos',
-  productName: 'Ventas POS',
+  appId: 'cl.tustock.pos',
+  productName: 'TuStock POS',
   directories: {
     output: 'release',
     buildResources: 'assets',
@@ -9,6 +9,12 @@ module.exports = {
     'dist/**/*',
     'package.json',
   ],
+  publish: {
+    provider: 'github',
+    owner: 'Bastian-Parra',
+    repo: 'tustock-pos',
+    releaseType: 'release',
+  },
   win: {
     target: [
       {
@@ -16,7 +22,8 @@ module.exports = {
         arch: ['x64'],
       },
     ],
-    icon: 'assets/icon.ico',
+    icon: 'assets/icon.png',
+    artifactName: 'TuStock-POS-Setup-${version}.exe',
   },
   mac: {
     target: [
@@ -27,6 +34,7 @@ module.exports = {
     ],
     icon: 'assets/icon.icns',
     category: 'public.app-category.business',
+    artifactName: 'TuStock-POS-${version}.dmg',
   },
   linux: {
     target: [
@@ -37,11 +45,14 @@ module.exports = {
     ],
     icon: 'assets/icon.png',
     category: 'Office',
+    artifactName: 'TuStock-POS-${version}.AppImage',
   },
   nsis: {
     oneClick: false,
     allowToChangeInstallationDirectory: true,
     createDesktopShortcut: true,
     createStartMenuShortcut: true,
+    installerIcon: 'assets/icon.png',
+    uninstallerIcon: 'assets/icon.png',
   },
 }
