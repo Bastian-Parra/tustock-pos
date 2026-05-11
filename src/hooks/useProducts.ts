@@ -12,22 +12,37 @@ export interface ProductWithBatches extends Product {
 
 export function useProducts() {
   const { tenant } = useAuthStore()
+  const [allProducts, setAllProducts] = useState<ProductWithBatches[]>([])
   const [products, setProducts] = useState<ProductWithBatches[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const channelRef = useRef<RealtimeChannel | null>(null)
 
+  const enrich = (data: ProductWithBatches[]): ProductWithBatches[] =>
+    (data || []).map(product => {
+      if (product.is_perishable && product.batches && product.batches.length > 0) {
+        const activeBatches = product.batches
+          .filter(b => b.status === 'active' && new Date(b.expiry_date) >= new Date())
+          .sort((a, b) => new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime())
+        const nearestBatch = activeBatches[0]
+        const daysUntil = nearestBatch
+          ? Math.ceil((new Date(nearestBatch.expiry_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+          : null
+        return { ...product, nearest_expiry: nearestBatch?.expiry_date || null, days_until_expiry: daysUntil }
+      }
+      return { ...product, nearest_expiry: null, days_until_expiry: null }
+    })
+
   const fetchProducts = useCallback(async () => {
     if (!tenant?.id) return
-    
     setLoading(true)
     try {
-      let query = supabase
+      const { data, error } = await supabase
         .from('products')
         .select(`
           *,
           batches:product_batches(
-            id, batch_code, quantity, expiry_date, 
+            id, batch_code, quantity, expiry_date,
             initial_quantity, cost_per_unit, status,
             tenant_id, product_id, created_at, updated_at
           )
@@ -36,46 +51,37 @@ export function useProducts() {
         .eq('is_active', true)
         .order('name')
 
-      if (searchQuery) {
-        query = query.or(`name.ilike.%${searchQuery}%,sku.ilike.%${searchQuery}%,barcode.ilike.%${searchQuery}%`)
-      }
-
-      const { data, error } = await query
-
       if (error) throw error
-      
-      const enriched: ProductWithBatches[] = ((data as ProductWithBatches[]) || []).map(product => {
-        if (product.is_perishable && product.batches && product.batches.length > 0) {
-          const activeBatches = product.batches
-            .filter(b => b.status === 'active' && new Date(b.expiry_date) >= new Date())
-            .sort((a, b) => new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime())
-          
-          const nearestBatch = activeBatches[0]
-          const daysUntil = nearestBatch 
-            ? Math.ceil((new Date(nearestBatch.expiry_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-            : null
-
-          return {
-            ...product,
-            nearest_expiry: nearestBatch?.expiry_date || null,
-            days_until_expiry: daysUntil,
-          }
-        }
-        return { ...product, nearest_expiry: null, days_until_expiry: null }
-      })
-      
+      const enriched = enrich(data as ProductWithBatches[])
+      setAllProducts(enriched)
       setProducts(enriched)
     } catch (error) {
       console.error('Error fetching products:', error)
     } finally {
       setLoading(false)
     }
-  }, [tenant?.id, searchQuery])
+  }, [tenant?.id])
 
-  // Fetch products on mount and when dependencies change
+  // Fetch products on mount and when tenant changes
   useEffect(() => {
     fetchProducts()
   }, [fetchProducts])
+
+  // Filtrar localmente sin llamar a Supabase
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setProducts(allProducts)
+      return
+    }
+    const q = searchQuery.toLowerCase()
+    setProducts(
+      allProducts.filter(p =>
+        p.name.toLowerCase().includes(q) ||
+        (p.sku && p.sku.toLowerCase().includes(q)) ||
+        (p.barcode && p.barcode.toLowerCase().includes(q))
+      )
+    )
+  }, [searchQuery, allProducts])
 
   // Supabase Realtime subscription for web-POS sync
   useEffect(() => {
