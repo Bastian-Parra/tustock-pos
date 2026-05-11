@@ -22,7 +22,7 @@ module.exports = {
         arch: ['x64'],
       },
     ],
-    icon: 'assets/icon.png',
+    icon: 'assets/logo.ico',
     artifactName: 'TuStock-POS-Setup-${version}.exe',
   },
   mac: {
@@ -32,7 +32,6 @@ module.exports = {
         arch: ['x64', 'arm64'],
       },
     ],
-    icon: 'assets/icon.icns',
     category: 'public.app-category.business',
     artifactName: 'TuStock-POS-${version}.dmg',
   },
@@ -52,7 +51,5 @@ module.exports = {
     allowToChangeInstallationDirectory: true,
     createDesktopShortcut: true,
     createStartMenuShortcut: true,
-    installerIcon: 'assets/icon.png',
-    uninstallerIcon: 'assets/icon.png',
   },
 }
