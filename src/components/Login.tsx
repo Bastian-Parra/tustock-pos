@@ -34,9 +34,7 @@ export default function Login() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-full mb-4">
-            <ShoppingCart className="w-8 h-8 text-white" />
-          </div>
+          <img src="https://tlfzticrfgeguepliwoe.supabase.co/storage/v1/object/public/public_images/logo-horizontal-variante.webp" alt="Logo" className="mx-auto h-16 w-auto" />
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Ventas POS</h1>
           <p className="text-gray-600">Sistema de Punto de Venta - TuStock</p>
         </div>
@@ -95,7 +93,7 @@ export default function Login() {
         </form>
 
         <p className="text-center text-sm text-gray-500 mt-6">
-          Versión Desktop - Multi-Tenant
+          POS Desktop - v1.0.2
         </p>
       </div>
     </div>
