@@ -10,6 +10,8 @@ import {
   Percent,
   Printer,
   Loader2,
+  X,
+  PackagePlus,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { useState } from "react";
@@ -33,7 +35,10 @@ export default function Cart() {
     setCustomer,
     getSubtotal,
     getTotal,
+    addItem,
   } = usePOSStore();
+
+  const PRODUCTO_GENERICO_ID = "c0df3cc5-253c-44be-83ce-0aa2f92b051f"
 
   const { tenant, user } = useAuthStore();
   const { createOrder } = useOrders();
@@ -41,8 +46,16 @@ export default function Cart() {
   const [showPrintDialog, setShowPrintDialog] = useState(false);
   const [lastTicketData, setLastTicketData] = useState<TicketData | null>(null);
 
+  const [showCustomModal, setShowCustomModal] = useState(false);
+  const [customItem, setCustomItem] = useState({
+    name: "",
+    price: "",
+    quantity: 1,
+  });
+
   const rawDefaultTaxRate = (tenant?.settings as any)?.tax_rate || 0.19;
-  const defaultTaxRate = rawDefaultTaxRate > 1 ? rawDefaultTaxRate / 100 : rawDefaultTaxRate;
+  const defaultTaxRate =
+    rawDefaultTaxRate > 1 ? rawDefaultTaxRate / 100 : rawDefaultTaxRate;
   const subtotal = getSubtotal();
 
   // Calcular IVA total (precios incluyen IVA, se extrae el componente IVA)
@@ -56,8 +69,33 @@ export default function Cart() {
 
   const total = getTotal();
 
-  const handleCheckout = async () => {
+  const handleAddCustomItem = () => {
+    if (
+      !customItem.name.trim() ||
+      Number(customItem.price) <= 0 ||
+      customItem.quantity <= 0
+    ) {
+      toast.error("Por favor completa los campos correctamente");
+      return;
+    }
 
+    const dummyProduct: any = {
+      id: PRODUCTO_GENERICO_ID,
+      name: customItem.name,
+      sku: "MANUAL",
+      price: Number(customItem.price),
+      cost: 0,
+      stock: 9999, // Stock infinito para evitar validaciones
+    };
+
+    addItem(dummyProduct, customItem.quantity);
+
+    setCustomItem({ name: "", price: "", quantity: 1 });
+    setShowCustomModal(false);
+    toast.success("Item personalizado agregado al carrito");
+  };
+
+  const handleCheckout = async () => {
     if (processing) {
       console.log("Processing...");
       return;
@@ -105,9 +143,9 @@ export default function Cart() {
           subtotal: itemSubtotal,
         };
       });
-      
+
       // Snapshot items antes de limpiar el carrito
-      const snapshotItems = items.map(item => ({
+      const snapshotItems = items.map((item) => ({
         name: item.product.name,
         quantity: item.quantity,
         unitPrice: item.product.price,
@@ -124,20 +162,24 @@ export default function Cart() {
 
       // Preparar datos del ticket
       const ticketData: TicketData = {
-        businessName: tenant?.name || 'Mi Tienda',
-        businessAddress: (tenant?.settings as any)?.address?.street || '',
-        businessPhone: (tenant?.settings as any)?.phone || '',
-        businessRut: (tenant?.settings as any)?.rut || '',
+        businessName: tenant?.name || "Mi Tienda",
+        businessAddress: (tenant?.settings as any)?.address?.street || "",
+        businessPhone: (tenant?.settings as any)?.phone || "",
+        businessRut: (tenant?.settings as any)?.rut || "",
         orderNumber: order?.order_number || `POS-${Date.now()}`,
-        date: new Date().toLocaleDateString('es-CL', { year: 'numeric', month: '2-digit', day: '2-digit' }),
-        cashierName: user?.full_name || user?.email || 'Cajero',
+        date: new Date().toLocaleDateString("es-CL", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        }),
+        cashierName: user?.full_name || user?.email || "Cajero",
         items: snapshotItems,
         subtotal,
         discount,
         tax,
         taxRate: defaultTaxRate,
         total,
-        paymentMethod: paymentMethod || 'cash',
+        paymentMethod: paymentMethod || "cash",
         footerMessage: loadPrinterConfig().footerMessage,
       };
 
@@ -167,6 +209,14 @@ export default function Cart() {
           selectedCustomerId={customerId}
           onSelect={(c: Customer | null) => setCustomer(c?.id ?? null)}
         />
+
+        <button
+          onClick={() => setShowCustomModal(true)}
+          className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          <PackagePlus className="inline-block mr-2" size={18} />
+          Agregar producto manual
+        </button>
       </div>
 
       {/* Items */}
@@ -355,6 +405,89 @@ export default function Cart() {
         onClose={() => setShowPrintDialog(false)}
         ticketData={lastTicketData}
       />
+
+      {showCustomModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="p-4 border-b flex justify-between items-center bg-gray-50">
+              <h3 className="font-bold text-gray-900">
+                Agregar Producto Manual
+              </h3>
+              <button
+                onClick={() => setShowCustomModal(false)}
+                className="text-gray-400 hover:text-gray-600 p-1"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Descripción
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ej. Dulces surtidos"
+                  value={customItem.name}
+                  onChange={(e) =>
+                    setCustomItem({ ...customItem, name: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  autoFocus
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Precio Unitario
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-2.5 text-gray-500">
+                      $
+                    </span>
+                    <input
+                      type="number"
+                      min="0"
+                      value={customItem.price}
+                      onChange={(e) =>
+                        setCustomItem({ ...customItem, price: e.target.value })
+                      }
+                      className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Cantidad
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={customItem.quantity}
+                    onChange={(e) =>
+                      setCustomItem({
+                        ...customItem,
+                        quantity: Number(e.target.value),
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  />
+                </div>
+              </div>
+
+              <button
+                onClick={handleAddCustomItem}
+                className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
+              >
+                Añadir al carrito
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

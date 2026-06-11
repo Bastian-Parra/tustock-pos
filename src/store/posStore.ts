@@ -7,7 +7,7 @@ interface POSStore {
   discount: number
   paymentMethod: 'cash' | 'card' | 'transfer' | 'qr' | 'other' | null
   
-  addItem: (product: Product) => void
+  addItem: (product: Product, quantity?: number) => void
   removeItem: (productId: string) => void
   updateQuantity: (productId: string, quantity: number) => void
   clearCart: () => void
@@ -26,20 +26,21 @@ export const usePOSStore = create<POSStore>((set, get) => ({
   discount: 0,
   paymentMethod: null,
   
-  addItem: (product) => {
+  addItem: (product, quantity = 1) => {
     const existingItem = get().items.find(item => item.product.id === product.id)
     const availableStock = product.stock || 0
     
     if (existingItem) {
+      const newQuantity = existingItem.quantity + quantity
       // Si ya existe, incrementar cantidad
-      if (existingItem.quantity > availableStock) {
+      if (newQuantity > availableStock) {
         throw new Error('Stock insuficiente')
       }
 
       set({
         items: get().items.map(item =>
           item.product.id === product.id
-            ? { ...item, quantity: item.quantity + 1 }
+            ? { ...item, quantity: newQuantity }
             : item
         ),
       })
@@ -50,7 +51,7 @@ export const usePOSStore = create<POSStore>((set, get) => ({
       }
       // Si no existe, agregar nuevo item
       set({
-        items: [...get().items, { product, quantity: 1 }],
+        items: [...get().items, { product, quantity }],
       })
     }
   },
