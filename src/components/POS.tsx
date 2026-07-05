@@ -55,12 +55,12 @@ export default function POS() {
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Productos - 70% */}
-        <div className="w-[70%] border-r border-gray-200 bg-white">
+        <div className="w-[60%] border-r border-gray-200 bg-white">
           <ProductSearch />
         </div>
 
         {/* Carrito - 30% */}
-        <div className="w-[30%]">
+        <div className="w-[40%]">
           <Cart />
         </div>
       </div>

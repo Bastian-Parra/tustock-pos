@@ -121,7 +121,7 @@ export default function Cart() {
         );
         return;
       }
-    } catch (error) {}
+    } catch (error) { }
 
     try {
       // Convertir items a OrderItems
@@ -196,9 +196,9 @@ export default function Cart() {
   };
 
   return (
-    <div className="h-full flex flex-col bg-gray-50">
+    <div className="h-full flex flex-col bg-gray-100">
       {/* Header */}
-      <div className="p-4 bg-white border-b space-y-3">
+      <div className="p-4 bg-white border-b space-y-3 flex items-center justify-between gap-5">
         <div>
           <h2 className="text-xl font-bold text-gray-900">Carrito de Venta</h2>
           <p className="text-sm text-gray-600">
@@ -212,7 +212,7 @@ export default function Cart() {
 
         <button
           onClick={() => setShowCustomModal(true)}
-          className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+          className="w-100 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
         >
           <PackagePlus className="inline-block mr-2" size={18} />
           Agregar producto manual
@@ -220,7 +220,7 @@ export default function Cart() {
       </div>
 
       {/* Items */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div className="flex-1 overflow-y-auto p-1 space-y-3">
         {items.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-500">
             <p className="text-lg">Carrito vacío</p>
@@ -230,63 +230,62 @@ export default function Cart() {
           items.map((item) => (
             <div
               key={item.product.id}
-              className="bg-white rounded-lg p-4 border border-gray-200"
+              className="bg-white rounded-lg p-3 border border-gray-200"
             >
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex-1">
+              <div className="flex justify-between items-center">
+                <div className="flex gap-2 items-center">
                   <h3 className="font-semibold text-gray-900 text-sm">
                     {item.product.name}
                   </h3>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-sm text-gray-500">
                     SKU: {item.product.sku}
                   </p>
                 </div>
-                <button
-                  onClick={() => removeItem(item.product.id)}
-                  className="text-red-500 hover:text-red-700 p-1"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-
-              <div className="flex items-center justify-between mt-3">
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      try {
-                        updateQuantity(item.product.id, item.quantity - 1);
-                      } catch (error: any) {
-                        toast.error(
-                          error.message || "Error al actualizar cantidad",
-                        );
-                      }
-                    }}
-                    className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100"
-                  >
-                    <Minus size={14} />
-                  </button>
-                  <span className="w-12 text-center font-semibold">
-                    {item.quantity}
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        try {
+                          updateQuantity(item.product.id, item.quantity - 1);
+                        } catch (error: any) {
+                          toast.error(
+                            error.message || "Error al actualizar cantidad",
+                          );
+                        }
+                      }}
+                      className="w-5 h-5 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100"
+                    >
+                      <Minus size={14} />
+                    </button>
+                    <span className="w-12 text-center font-semibold">
+                      {item.quantity}
+                    </span>
+                    <button
+                      onClick={() => {
+                        try {
+                          updateQuantity(item.product.id, item.quantity + 1);
+                        } catch (error: any) {
+                          toast.error(
+                            error.message || "Error al actualizar cantidad",
+                          );
+                        }
+                      }}
+                      disabled={item.quantity >= (item.product.stock || 0)}
+                      className="w-5 h-5 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Plus size={14} />
+                    </button>
+                  </div>
+                  <span className="font-bold text-blue-600">
+                    {formatCurrency(item.product.price * item.quantity)}
                   </span>
                   <button
-                    onClick={() => {
-                      try {
-                        updateQuantity(item.product.id, item.quantity + 1);
-                      } catch (error: any) {
-                        toast.error(
-                          error.message || "Error al actualizar cantidad",
-                        );
-                      }
-                    }}
-                    disabled={item.quantity >= (item.product.stock || 0)}
-                    className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={() => removeItem(item.product.id)}
+                    className="text-red-500 hover:text-red-700 p-1"
                   >
-                    <Plus size={14} />
+                    <Trash2 size={16} />
                   </button>
                 </div>
-                <span className="font-bold text-blue-600">
-                  {formatCurrency(item.product.price * item.quantity)}
-                </span>
               </div>
             </div>
           ))
@@ -296,7 +295,8 @@ export default function Cart() {
       {/* Totales y acciones */}
       <div className="p-4 bg-white border-t space-y-4">
         {/* Descuento */}
-        <div className="flex items-center gap-2">
+
+        {/*<div className="flex items-center gap-2">
           <Percent size={18} className="text-gray-500" />
           <input
             type="number"
@@ -306,23 +306,22 @@ export default function Cart() {
             className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
             min="0"
           />
-        </div>
+        </div>}
 
         {/* Método de pago */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Método de Pago
           </label>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-1">
             {["cash", "card", "transfer", "qr"].map((method) => (
               <button
                 key={method}
                 onClick={() => setPaymentMethod(method as any)}
-                className={`p-3 border-2 rounded-lg text-sm font-medium transition ${
-                  paymentMethod === method
-                    ? "border-blue-600 bg-blue-50 text-blue-700"
-                    : "border-gray-200 hover:border-gray-300"
-                }`}
+                className={`p-3 border-2 rounded-lg text-sm font-medium transition ${paymentMethod === method
+                  ? "border-blue-600 bg-blue-50 text-blue-700"
+                  : "border-gray-200 hover:border-gray-300"
+                  }`}
               >
                 {method === "cash" && (
                   <DollarSign size={16} className="inline mr-1" />
