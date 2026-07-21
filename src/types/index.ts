@@ -92,6 +92,11 @@ export interface Product {
   has_batches?: boolean
   created_at: string
   updated_at: string
+  is_bundle?: boolean
+  bundle_items?: {
+    product_id: string
+    quantity: number
+  }[]
 }
 
 // Lote de producto (para productos perecibles)

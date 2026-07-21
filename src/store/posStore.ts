@@ -29,11 +29,13 @@ export const usePOSStore = create<POSStore>((set, get) => ({
   addItem: (product, quantity = 1) => {
     const existingItem = get().items.find(item => item.product.id === product.id)
     const availableStock = product.stock || 0
+
+    const bypassStockCheck = product.is_bundle || product.sku === "MANUAL"
     
     if (existingItem) {
       const newQuantity = existingItem.quantity + quantity
       // Si ya existe, incrementar cantidad
-      if (newQuantity > availableStock) {
+      if (!bypassStockCheck && newQuantity > availableStock) {
         throw new Error('Stock insuficiente')
       }
 
@@ -72,7 +74,10 @@ export const usePOSStore = create<POSStore>((set, get) => ({
 
     if (item) {
       const availableStock = item.product.stock || 0
-      if (quantity > availableStock) {
+
+      const bypassStockCheck = item.product.is_bundle || item.product.sku === "MANUAL"
+
+      if (!bypassStockCheck && quantity > availableStock) {
         throw new Error('Stock insuficiente')
       }
     }

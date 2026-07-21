@@ -79,8 +79,11 @@ export default function Cart() {
       return;
     }
 
+    // id unico para que no se mezcle en el carrito
+    const customId = `custom-${Date.now()}`;
+
     const dummyProduct: any = {
-      id: PRODUCTO_GENERICO_ID,
+      id: customId,
       name: customItem.name,
       sku: "MANUAL",
       price: Number(customItem.price),
@@ -88,11 +91,19 @@ export default function Cart() {
       stock: 9999, // Stock infinito para evitar validaciones
     };
 
-    addItem(dummyProduct, customItem.quantity);
+    try {
+      addItem(dummyProduct, customItem.quantity);
 
-    setCustomItem({ name: "", price: "", quantity: 1 });
-    setShowCustomModal(false);
-    toast.success("Item personalizado agregado al carrito");
+      if (customItem.quantity > 1) {
+        updateQuantity(customId, customItem.quantity);
+      }
+
+      setCustomItem({ name: "", price: "", quantity: 1 });
+      setShowCustomModal(false);
+      toast.success("Item personalizado agregado al carrito");
+    } catch (error: any) {
+      toast.error(error.message || "Error al agregar producto manual");
+    }
   };
 
   const handleCheckout = async () => {
@@ -124,6 +135,9 @@ export default function Cart() {
     } catch (error) { }
 
     try {
+
+      const PRODUCTO_GENERICO_ID = "c0df3cc5-253c-44be-83ce-0aa2f92b051f";
+
       // Convertir items a OrderItems
       const orderItems = items.map((item) => {
         const itemSubtotal = item.product.price * item.quantity;
@@ -132,7 +146,7 @@ export default function Cart() {
         const itemTax = itemSubtotal - itemNeto;
 
         return {
-          product_id: item.product.id,
+          product_id: String(item.product.id).startsWith("custom-") ? PRODUCTO_GENERICO_ID : item.product.id,
           product_name: item.product.name,
           sku: item.product.sku,
           quantity: item.quantity,
